@@ -1,0 +1,41 @@
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* 每个表情包宽度至少100px，自动填充网格列 */
+    gap: 10px; /* 网格间隙 */
+    padding: 10px; /* 网格内边距 */
+}
+
+.emoji-item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.emoji-item img {
+    max-width: 100%; /* 图片最大宽度100% */
+    max-height: 100px; /* 图片最大高度100px */
+    border-radius: 5px; /* 图片边角圆滑 */
+}
+
+.emoji-grid .emoji-item.selected {
+    background-color: rgba(135, 206, 235, 0.5); /* Sky blue with 50% opacity */
+    outline: none; /* 可选，如果你不需要边框 */
+}
+.folder-suggestions {
+	margin-top: 10px;
+	border: 1px solid skyblue;
+	padding: 5px;
+	background-color: gray;
+	border-radius: 5px;
+	max-height: 150px;
+	overflow-y: auto;
+}
+
+.folder-suggestion-item {
+	padding: 5px;
+	cursor: pointer;
+}
+
+.folder-suggestion-item:hover {
+	background-color: rgba(128, 128, 128, 0.5);
+}
