@@ -3,18 +3,24 @@ const { Plugin, Modal, PluginSettingTab, Setting, MarkdownView } = require('obsi
 
 // 默认设置
 const DEFAULT_SETTINGS = {
-	emojiFolderPath: '表情包'  // 默认表情包文件夹路径
+	emojiFolderPath: '表情包',  // 默认表情包文件夹路径
+    emojisPerRow: 5,  // 每行表情数量，默认 5
+    emojiHeight: 100,  // 表情包插入高度，默认 100 像素
+    highlightColor: 'rgba(0, 122, 255, 0.5)'  // 选中表情的高亮颜色，默认蓝色不透明度 0.5
 };
 
 
 class EmojiModal extends Modal {
-    constructor(app, emojis, onSelect, emojiFolderPath) {
+    constructor(app, emojis, onSelect, emojiFolderPath, emojisPerRow, emojiHeight, highlightColor) {
         super(app);
         this.emojis = emojis;
         this.onSelect = onSelect;
         this.path = emojiFolderPath;
         this.filteredEmojis = emojis;
         this.selectedIdx = -1;  // 初始化选中索引
+        this.emojisPerRow = emojisPerRow;
+        this.emojiHeight = emojiHeight;
+        this.highlightColor = highlightColor;
     }
 
     onOpen() {
@@ -51,9 +57,11 @@ class EmojiModal extends Modal {
     renderEmojis() {
         const gridContainer = this.gridContainer;
         gridContainer.empty();  // 清空现有表情显示
+        gridContainer.style.gridTemplateColumns = `repeat(${this.emojisPerRow}, 1fr)`;  // 设置每行表情包数量
+
         this.filteredEmojis.forEach((emoji, index) => {
             const emojiContainer = gridContainer.createEl('div', { cls: 'emoji-item', tabIndex: -1 });
-            const fullPath = this.app.vault.getAbstractFileByPath(${this.path}/${emoji});
+            const fullPath = this.app.vault.getAbstractFileByPath(`${this.path}/${emoji}`);
             if (fullPath) {
                 const imgPath = this.app.vault.getResourcePath(fullPath);
                 const img = emojiContainer.createEl('img', {
@@ -63,12 +71,12 @@ class EmojiModal extends Modal {
                     }
                 });
                 img.addEventListener('click', () => {
-                    this.onSelect(emoji);
+                    this.onSelect(`${emoji}|${this.emojiHeight}`);  // 插入时使用设置的插入高度
                     this.close();
                 });
             }
-            if (index === this.selectedIdx) {  // 根据选中索引设置焦点
-                emojiContainer.focus();
+            if (index === this.selectedIdx) {  // 根据选中索引设置边框高亮
+                emojiContainer.style.outline = `2px solid ${this.highlightColor}`;
             }
         });
     }
@@ -108,7 +116,7 @@ class EmojiModal extends Modal {
                         break;
                     case "Enter":
                         // 选择当前表情
-                        this.onSelect(this.filteredEmojis[this.selectedIdx]);
+                        this.onSelect(this.filteredEmojis[this.selectedIdx] + `|${this.emojiHeight}`);
                         this.close();
                         break;
                     case "ArrowRight":
@@ -120,12 +128,12 @@ class EmojiModal extends Modal {
                         this.moveSelection(-1);
                         break;
                     case "ArrowDown":
-                        // 向下移动（假设每行有 5 个表情）
-                        this.moveSelection(5);
+                        // 向下移动（假设每行有固定数量表情）
+                        this.moveSelection(this.emojisPerRow);
                         break;
                     case "ArrowUp":
                         // 向上移动
-                        this.moveSelection(-5);
+                        this.moveSelection(-this.emojisPerRow);
                         break;
                 }
             } else {
@@ -149,10 +157,10 @@ class EmojiModal extends Modal {
         // 更新选择状态，并确保选中项处于可视区域
         Array.from(this.gridContainer.children).forEach((child, index) => {
             if (index === this.selectedIdx) {
-                child.classList.add('selected');  // 为选中项添加样式
+                child.style.outline = `2px solid ${this.highlightColor}`;  // 为选中项添加边框高亮
                 child.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
-                child.classList.remove('selected');
+                child.style.outline = 'none';
             }
         });
     }
@@ -236,8 +244,73 @@ class EmojiSettingTab extends PluginSettingTab {
 					}
 				});
 			});
+
+		// 设置每行表情包数量
+		new Setting(containerEl)
+			.setName('每行表情包数量')
+			.setDesc('设置每行显示的表情包数量')
+			.addText(text => {
+				text
+					.setPlaceholder('例如: 5')
+					.setValue(this.plugin.settings.emojisPerRow.toString())
+					.onChange(async (value) => {
+						const intValue = parseInt(value);
+						if (!isNaN(intValue) && intValue > 0) {
+							this.plugin.settings.emojisPerRow = intValue;
+							await this.plugin.saveSettings(); // 保存设置
+						}
+					});
+			});
+
+		// 设置表情包插入高度
+		new Setting(containerEl)
+			.setName('表情包插入高度')
+			.setDesc('设置插入表情包的高度（单位：像素）')
+			.addText(text => {
+				text
+					.setPlaceholder('例如: 100')
+					.setValue(this.plugin.settings.emojiHeight.toString())
+					.onChange(async (value) => {
+						const intValue = parseInt(value);
+						if (!isNaN(intValue) && intValue > 0) {
+							this.plugin.settings.emojiHeight = intValue;
+							await this.plugin.saveSettings(); // 保存设置
+						}
+					});
+			});
+
+        // 设置选中表情的高亮颜色
+        new Setting(containerEl)
+            .setName('选中表情高亮颜色')
+            .setDesc('设置选中表情的高亮颜色（支持 RGBA、十六进制颜色代码）')
+            .addText(text => {
+                text
+                    .setPlaceholder('例如: rgba(0, 122, 255, 0.5)、#aabbcc')
+                    .setValue(this.plugin.settings.highlightColor)
+                    .onChange(async (value) => {
+                        this.plugin.settings.highlightColor = value;
+                        await this.plugin.saveSettings(); // 保存设置
+
+                        // 更新颜色预览
+                        const colorPreview = text.inputEl.parentElement.querySelector('.color-preview');
+                        if (colorPreview) {
+                            colorPreview.style.backgroundColor = value;
+                        }
+                    });
+
+                // 添加颜色预览圆圈
+                const colorPreview = document.createElement('div');
+                colorPreview.className = 'color-preview';
+                colorPreview.style.width = '20px';
+                colorPreview.style.height = '20px';
+                colorPreview.style.borderRadius = '50%';
+                colorPreview.style.marginLeft = '10px';
+                colorPreview.style.backgroundColor = this.plugin.settings.highlightColor;
+                text.inputEl.parentElement.appendChild(colorPreview);
+            });
 	}
 }
+
 module.exports = class EmojiPlugin extends Plugin {
 	// 存储表情包使用频率
 	emojiUsage = {};
@@ -270,20 +343,28 @@ module.exports = class EmojiPlugin extends Plugin {
 		this.sortEmojisByUsage(filteredEmojis);
 
 		// 创建 UI 弹窗展示表情包
-		let emojiModal = new EmojiModal(this.app, filteredEmojis, (selectedEmoji) => {
-			let activeLeaf = this.app.workspace.activeLeaf;
-			if (activeLeaf) {
-				let editor = activeLeaf.view instanceof MarkdownView ? activeLeaf.view.editor : null;
-				if (editor) {
-					// 构建完整的 Markdown 图片链接
-					let markdownLink = ![[${this.settings.emojiFolderPath}/${selectedEmoji}]];
-					editor.replaceSelection(markdownLink);
-					this.updateEmojiUsage(selectedEmoji);
-				} else {
-					console.log("No active editor found or not a Markdown file.");
+		let emojiModal = new EmojiModal(
+			this.app, 
+			filteredEmojis, 
+			(selectedEmoji) => {
+				let activeLeaf = this.app.workspace.activeLeaf;
+				if (activeLeaf) {
+					let editor = activeLeaf.view instanceof MarkdownView ? activeLeaf.view.editor : null;
+					if (editor) {
+						// 构建完整的 Markdown 图片链接
+						let markdownLink = `![[${this.settings.emojiFolderPath}/${selectedEmoji}]]`;
+						editor.replaceSelection(markdownLink);
+						this.updateEmojiUsage(selectedEmoji);
+					} else {
+						console.log("No active editor found or not a Markdown file.");
+					}
 				}
-			}
-		}, this.settings.emojiFolderPath);
+			}, 
+			this.settings.emojiFolderPath,
+			this.settings.emojisPerRow,
+			this.settings.emojiHeight,
+			this.settings.highlightColor
+		);
 		emojiModal.open();
 	}
 

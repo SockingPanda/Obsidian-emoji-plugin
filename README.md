@@ -1,4 +1,7 @@
 # Obsidian Emoji 插件
+
+[查看更新日志（CHANGELOG）](./CHANGELOG.md)
+
 ## 插件简介
 
 Obsidian Emoji 插件的原始版本旨在为用户在 Markdown 文档中快速插入和管理表情包提供简便工具。插件通过自定义的 UI 选择器，让用户从指定文件夹中选择表情并将其插入到文档中。
